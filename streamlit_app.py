@@ -1,40 +1,54 @@
-# Import python packages
 import streamlit as st
-from snowflake.snowpark.functions import col
+import snowflake.connector
+import pandas as pd
 
-# Write directly to the app
+# Streamlit UI
 st.title(":cup_with_straw: Customize Your Smoothie! :cup_with_straw:")
-st.write(
-  """Choose the fruits you want in your custom Smoothie!
-  """)
-#option = st.selectbox(
-#    "What is your favorite fruit?",
-#    ("Banana", "Strawberries", "Peaches"),
-#)
-#st.write("You favorite fruit is:", option)
+st.write("Choose the fruits you want in your custom Smoothie!")
 
+# Get user input
 name_on_order = st.text_input("Name on Smoothie:")
 st.write("The name on your Smoothie will be:", name_on_order)
 
-session = get_active_session()
-my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
-#st.dataframe(data=my_dataframe, use_container_width=True)
+# Connect to Snowflake using secrets
+conn = snowflake.connector.connect(
+    user=st.secrets["connections.snowflake"]["user"],
+    password=st.secrets["connections.snowflake"]["password"],
+    account=st.secrets["connections.snowflake"]["account"],
+    role=st.secrets["connections.snowflake"]["role"],
+    warehouse=st.secrets["connections.snowflake"]["warehouse"],
+    database=st.secrets["connections.snowflake"]["database"],
+    schema=st.secrets["connections.snowflake"]["schema"]
+)
 
+# Fetch fruit options
+cur = conn.cursor()
+cur.execute("SELECT FRUIT_NAME FROM smoothies.public.fruit_options")
+fruit_rows = cur.fetchall()
+cur.close()
+
+# Create list of fruit names
+fruit_names = [row[0] for row in fruit_rows]
+
+# Multi-select for ingredients
 ingredients_list = st.multiselect(
-    'Choose up to 5 ingredients:'
-    , my_dataframe, max_selections=5
-    )
+    'Choose up to 5 ingredients:',
+    fruit_names, max_selections=5
+)
 
-if ingredients_list: 
-    ingredients_string = ' '.join(ingredients_list)  # simpler than loop
-
-    my_insert_stmt = f"""insert into smoothies.public.orders(ingredients, name_on_order)
-                         values ('{ingredients_string}', '{name_on_order}')"""
-
-    #st.write(my_insert_stmt)
-
+# Handle submission
+if ingredients_list:
+    ingredients_string = ' '.join(ingredients_list)
+    insert_stmt = f"""INSERT INTO smoothies.public.orders (ingredients, name_on_order)
+                      VALUES (%s, %s)"""
+    
     time_to_insert = st.button('Submit Order')
     if time_to_insert:
-        session.sql(my_insert_stmt).collect()
+        cur = conn.cursor()
+        cur.execute(insert_stmt, (ingredients_string, name_on_order))
+        conn.commit()
+        cur.close()
         st.success(f"Your Smoothie is ordered, **{name_on_order}**!", icon="✅")
- 
+
+# Close connection when done
+conn.close()
