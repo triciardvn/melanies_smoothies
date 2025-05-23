@@ -12,13 +12,13 @@ st.write("The name on your Smoothie will be:", name_on_order)
 
 # Connect to Snowflake using secrets
 conn = snowflake.connector.connect(
-    user=st.secrets["connections.snowflake"]["user"],
-    password=st.secrets["connections.snowflake"]["password"],
-    account=st.secrets["connections.snowflake"]["account"],
-    role=st.secrets["connections.snowflake"]["role"],
-    warehouse=st.secrets["connections.snowflake"]["warehouse"],
-    database=st.secrets["connections.snowflake"]["database"],
-    schema=st.secrets["connections.snowflake"]["schema"]
+    user="triciaradovan",
+    password="TestingSnow123!",
+    account="AVLTGMM-GMB10007",
+    role="SYSADMIN",
+    warehouse="COMPUTE_WH",
+    database="SMOOTHIES",
+    schema="PUBLIC"
 )
 
 # Fetch fruit options
